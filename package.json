@@ -1,0 +1,21 @@
+{
+  "name": "smart-notes-advisor",
+  "version": "1.0.0",
+  "description": "Learning project: Embeddings + pgvector + RAG + Backend AI",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js"
+  },
+  "keywords": ["ai", "embeddings", "rag", "pgvector"],
+  "author": "awx-06",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "dotenv": "^16.3.1",
+    "openai": "^4.20.1",
+    "prisma": "^5.7.0",
+    "@prisma/client": "^5.7.0"
+  }
+}
