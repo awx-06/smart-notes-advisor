@@ -20,21 +20,50 @@
 npm install
 ```
 
-### 2. Configure Environment
+### 2. Set Up PostgreSQL + pgvector
 
-Copy `.env.example` to `.env` and fill in your values:
+**Using Docker (Recommended):**
+```bash
+docker run -d \
+  --name smart-notes-db \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=smart_notes \
+  -p 5432:5432 \
+  pgvector/pgvector:pg16
+```
+
+**Enable pgvector extension:**
+```bash
+docker exec -it smart-notes-db psql -U postgres -d smart_notes -c "CREATE EXTENSION IF NOT EXISTS vector;"
+```
+
+**Run setup script:**
+```bash
+docker exec -i smart-notes-db psql -U postgres -d smart_notes < scripts/setup-database.sql
+```
+
+### 3. Configure Environment
+
+Copy `.env.example` to `.env` and update with your values:
 
 ```bash
 cp .env.example .env
 ```
 
-### 3. Run the Server
+Example `.env`:
+```
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/smart_notes"
+OPENAI_API_KEY="sk-..."
+PORT=3000
+```
+
+### 4. Run the Server
 
 ```bash
 npm run dev
 ```
 
-### 4. Test Health Check
+### 5. Test Health Check
 
 ```bash
 curl http://localhost:3000/health
@@ -45,7 +74,7 @@ curl http://localhost:3000/health
 ## 📋 Progress Tracker
 
 - [x] Phase 0 — Project Setup
-- [ ] Phase 1 — PostgreSQL + pgvector
+- [x] Phase 1 — PostgreSQL + pgvector
 - [ ] Phase 2 — Prisma Schema
 - [ ] Phase 3 — Embeddings Service
 - [ ] Phase 4 — Add Note Endpoint
@@ -66,6 +95,15 @@ curl http://localhost:3000/health
 # Expected: {"status":"ok",...}
 ```
 
+### Phase 1
+```bash
+# Test pgvector is working
+docker exec -it smart-notes-db psql -U postgres -d smart_notes -c "SELECT * FROM pg_extension WHERE extname = 'vector';"
+
+# Test vector operations
+docker exec -i smart-notes-db psql -U postgres -d smart_notes < scripts/setup-database.sql
+```
+
 ---
 
 ## 📖 Key Concepts
@@ -75,6 +113,11 @@ Embeddings are numerical representations of text that capture semantic meaning. 
 
 ### What is pgvector?
 A PostgreSQL extension that adds vector data types and similarity search capabilities.
+
+**Similarity Operators:**
+- `<=>` Cosine distance (most common for text embeddings)
+- `<->` L2/Euclidean distance
+- `<#>` Inner product
 
 ### What is RAG?
 Retrieval-Augmented Generation: Using a database to find relevant context before asking an AI to generate a response.
