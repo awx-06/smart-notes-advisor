@@ -1,14 +1,11 @@
-import OpenAI from 'openai';
-
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Using Ollama for local, free embeddings (no payment required!)
+const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
+const EMBEDDING_MODEL = process.env.EMBEDDING_MODEL || 'nomic-embed-text';
 
 /**
- * Generate an embedding vector for the given text
+ * Generate an embedding vector for the given text using Ollama
  * @param {string} text - The text to convert into an embedding
- * @returns {Promise<number[]>} - Array of 1536 numbers representing the embedding
+ * @returns {Promise<number[]>} - Array of numbers representing the embedding
  */
 export async function generateEmbedding(text) {
   try {
@@ -17,27 +14,36 @@ export async function generateEmbedding(text) {
       throw new Error('Text must be a non-empty string');
     }
 
-    // Call OpenAI Embeddings API
-    const response = await openai.embeddings.create({
-      model: 'text-embedding-3-small',  // Fast, cheap, 1536 dimensions
-      input: text,
+    // Call Ollama Embeddings API
+    const response = await fetch(`${OLLAMA_URL}/api/embeddings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: EMBEDDING_MODEL,
+        prompt: text,
+      }),
     });
 
-    // Extract the embedding vector
-    const embedding = response.data[0].embedding;
+    if (!response.ok) {
+      throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const embedding = data.embedding;
 
     console.log(`✅ Generated embedding for text: "${text.substring(0, 50)}..."`); 
     console.log(`   Embedding dimensions: ${embedding.length}`);
+    console.log(`   Model: ${EMBEDDING_MODEL}`);
 
     return embedding;
   } catch (error) {
     console.error('❌ Error generating embedding:', error.message);
     
-    // Re-throw with more context
-    if (error.status === 401) {
-      throw new Error('Invalid OpenAI API key. Check your .env file.');
-    } else if (error.status === 429) {
-      throw new Error('OpenAI rate limit exceeded. Try again later.');
+    // Provide helpful error messages
+    if (error.message.includes('fetch')) {
+      throw new Error('Cannot connect to Ollama. Make sure Ollama is running (try "ollama serve")');
     } else {
       throw new Error(`Failed to generate embedding: ${error.message}`);
     }
