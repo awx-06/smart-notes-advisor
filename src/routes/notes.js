@@ -1,0 +1,123 @@
+import express from 'express';
+import { generateEmbedding } from '../services/embeddings.js';
+import { PrismaClient } from '@prisma/client';
+
+const router = express.Router();
+const prisma = new PrismaClient();
+
+/**
+ * POST /notes - Add a new note with embedding
+ * Body: { "content": "Your note text here" }
+ */
+router.post('/', async (req, res) => {
+  try {
+    const { content } = req.body;
+
+    // Validate input
+    if (!content || typeof content !== 'string' || content.trim().length === 0) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Content must be a non-empty string'
+      });
+    }
+
+    console.log(`📝 Creating note: "${content.substring(0, 50)}..."`);
+
+    // Generate embedding
+    const embedding = await generateEmbedding(content);
+
+    // Save to database
+    const note = await prisma.note.create({
+      data: {
+        content,
+        embedding: `[${embedding.join(',')}]`, // Convert array to pgvector format
+      },
+    });
+
+    console.log(`✅ Note created with ID: ${note.id}`);
+
+    res.status(201).json({
+      status: 'success',
+      data: {
+        id: note.id,
+        content: note.content,
+        createdAt: note.createdAt,
+        embeddingDimensions: embedding.length,
+      },
+    });
+  } catch (error) {
+    console.error('❌ Error creating note:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * GET /notes - List all notes
+ */
+router.get('/', async (req, res) => {
+  try {
+    const notes = await prisma.note.findMany({
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        // Don't return embeddings (too large)
+      },
+    });
+
+    res.json({
+      status: 'success',
+      count: notes.length,
+      data: notes,
+    });
+  } catch (error) {
+    console.error('❌ Error fetching notes:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * GET /notes/:id - Get a specific note
+ */
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const note = await prisma.note.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!note) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Note not found',
+      });
+    }
+
+    res.json({
+      status: 'success',
+      data: note,
+    });
+  } catch (error) {
+    console.error('❌ Error fetching note:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error.message,
+    });
+  }
+});
+
+export default router;
