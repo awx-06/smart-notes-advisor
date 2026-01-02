@@ -1,9 +1,10 @@
 import express from 'express';
+import { randomUUID } from 'crypto';
+import { Prisma } from '@prisma/client';
+import prisma from '../db.js';
 import { generateEmbedding } from '../services/embeddings.js';
-import { PrismaClient } from '@prisma/client';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 /**
  * POST /notes - Add a new note with embedding
@@ -21,19 +22,21 @@ router.post('/', async (req, res) => {
       });
     }
 
-    console.log(`📝 Creating note: "${content.substring(0, 50)}..."`);
+    console.log(`📝 Creating note:  "${content. substring(0, 50)}..."`);
 
     // Generate embedding
     const embedding = await generateEmbedding(content);
+    const vectorLiteral = `[${embedding.join(',')}]`;
+    const id = randomUUID();
 
-    // Save to database
-    const note = await prisma.note.create({
-      data: {
-        content,
-        embedding: `[${embedding.join(',')}]`, // Convert array to pgvector format
-      },
-    });
+    // Insert using raw SQL because Prisma does not support pgvector yet
+    const inserted = await prisma.$queryRaw(Prisma.sql`
+      INSERT INTO "Note" ("id", "content", "embedding", "updatedAt")
+      VALUES (${id}, ${content}, ${vectorLiteral}::vector, NOW())
+      RETURNING "id", "content", "createdAt", "updatedAt";
+    `);
 
+    const note = Array.isArray(inserted) ? inserted[0] : inserted;
     console.log(`✅ Note created with ID: ${note.id}`);
 
     res.status(201).json({
@@ -42,6 +45,7 @@ router.post('/', async (req, res) => {
         id: note.id,
         content: note.content,
         createdAt: note.createdAt,
+        updatedAt: note.updatedAt,
         embeddingDimensions: embedding.length,
       },
     });
@@ -49,7 +53,7 @@ router.post('/', async (req, res) => {
     console.error('❌ Error creating note:', error);
     res.status(500).json({
       status: 'error',
-      message: error.message,
+      message:  error.message,
     });
   }
 });
@@ -65,6 +69,7 @@ router.get('/', async (req, res) => {
         id: true,
         content: true,
         createdAt: true,
+        updatedAt: true,
         // Don't return embeddings (too large)
       },
     });
@@ -84,7 +89,7 @@ router.get('/', async (req, res) => {
 });
 
 /**
- * GET /notes/:id - Get a specific note
+ * GET /notes/: id - Get a specific note
  */
 router.get('/:id', async (req, res) => {
   try {
@@ -101,7 +106,7 @@ router.get('/:id', async (req, res) => {
     });
 
     if (!note) {
-      return res.status(404).json({
+      return res. status(404).json({
         status: 'error',
         message: 'Note not found',
       });
@@ -109,7 +114,7 @@ router.get('/:id', async (req, res) => {
 
     res.json({
       status: 'success',
-      data: note,
+      data:  note,
     });
   } catch (error) {
     console.error('❌ Error fetching note:', error);

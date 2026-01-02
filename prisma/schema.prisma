@@ -1,20 +1,20 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// Prisma schema file
 
 generator client {
   provider = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  extensions = [vector]
 }
 
 model Note {
-  id        String   @id @default(cuid())
+  id        String   @id
   content   String
-  embedding Unsupported("vector(768)")?
+  embedding Unsupported("vector(768)")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
