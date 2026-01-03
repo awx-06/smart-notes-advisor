@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import prisma from './db.js';
 import { generateEmbedding } from './services/embeddings.js';
 import notesRouter from './routes/notes.js';
+import searchRouter from './routes/search.js';
 
 // Load environment variables
 dotenv.config();
@@ -75,6 +76,9 @@ app.post('/test-embedding', async (req, res) => {
 // ✅ Notes routes
 app.use('/notes', notesRouter);
 
+// ✅ Search routes
+app.use('/search', searchRouter);
+
 // Graceful shutdown
 process.on('SIGINT', async () => {
   await prisma.$disconnect();
@@ -89,4 +93,5 @@ app.listen(PORT, () => {
   console.log(`🤖 Test embedding: POST http://localhost:${PORT}/test-embedding`);
   console.log(`📝 Add note: POST http://localhost:${PORT}/notes`);
   console.log(`📋 List notes: GET http://localhost:${PORT}/notes`);
+  console.log(`🔍 Search notes: POST http://localhost:${PORT}/search`);
 });
