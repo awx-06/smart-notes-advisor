@@ -2,6 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import prisma from './db.js';
 import { generateEmbedding } from './services/embeddings.js';
+import { generateInsights } from './services/advisor.js';
 import notesRouter from './routes/notes.js';
 import searchRouter from './routes/search.js';
 
@@ -64,6 +65,33 @@ app.post('/test-embedding', async (req, res) => {
       embeddingDimensions: embedding.length,
       embeddingPreview: embedding.slice(0, 5), // First 5 numbers
       message: 'Embedding generated successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+});
+
+app.post('/test-advisor', async (req, res) => {
+  try {
+    const {query, notes} = req.body;
+
+    if(!query || !notes || !Array.isArray(notes)) {
+      return res.status(400).json({
+        error: 'Missing required fields: query (string) and notes (array)'
+      });
+    }
+
+    // Generate insights
+    const insights = await generateInsights(query, notes);
+
+    res.json({
+      status: 'success',
+      query: query,
+      notesCount: notes.length,
+      insights: insights
     });
   } catch (error) {
     res.status(500).json({

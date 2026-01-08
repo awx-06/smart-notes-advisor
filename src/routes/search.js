@@ -1,6 +1,7 @@
 import express from 'express';
 import { Prisma } from '@prisma/client';
 import { generateEmbedding } from '../services/embeddings.js';
+import { generateInsights } from '../services/advisor.js';
 import prisma from '../db.js';
 
 const router = express.Router();
@@ -11,7 +12,7 @@ const router = express.Router();
  */
 router.post('/', async (req, res) => {
   try {
-    const { query, limit = 5 } = req.body;
+    const { query, limit = 5, insights = false } = req.body;
 
     // Validate input
     if (!query || typeof query !== 'string' || query.trim().length === 0) {
@@ -42,17 +43,47 @@ router.post('/', async (req, res) => {
 
     console.log(`✅ Found ${results.length} similar notes`);
 
-    res.json({
+    // res.json({
+    //   status: 'success',
+    //   query,
+    //   count: results.length,
+    //   data: results.map(note => ({
+    //     id: note.id,
+    //     content: note.content,
+    //     createdAt: note.createdAt,
+    //     similarity: parseFloat(note.similarity.toFixed(4))
+    //   }))
+    // });
+
+    // Format results
+    const formattedResults = results.map(note => ({
+      id: note.id,
+      content: note.content,
+      createdAt: note.createdAt,
+      similarity: parseFloat(note.similarity.toFixed(4))
+    }));
+
+    // Build response
+    const response = {
       status: 'success',
-      query,
-      count: results.length,
-      data: results.map(note => ({
-        id: note.id,
-        content: note.content,
-        createdAt: note.createdAt,
-        similarity: parseFloat(note.similarity.toFixed(4))
-      }))
-    });
+      query: query,
+      count: formattedResults.length,
+      data: formattedResults
+    };
+
+    // If insights requested, generate AI Analysis
+    if (insights && formattedResults.length > 0) {
+      console.log('🤖 Generating AI insights for search results...');
+
+      const aiInsights = await generateInsights(query, formattedResults);
+
+      response.insights = aiInsights;
+
+      console.log('✅ AI insights added to response');
+    }
+
+    res.json(response);
+
   } catch (error) {
     console.error('❌ Error searching notes:', error);
     res.status(500).json({
